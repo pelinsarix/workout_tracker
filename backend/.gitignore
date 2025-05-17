@@ -10,3 +10,6 @@ __pycache__/
 *.log
 *.pid
 
+.env
+*.env
+*.DS_Store
