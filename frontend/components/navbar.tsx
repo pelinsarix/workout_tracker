@@ -1,108 +1,135 @@
 "use client"
 
-import Link from "next/link"
 import { useState } from "react"
-import { CalendarIcon, BarChart3Icon, DumbbellIcon, UserIcon, MenuIcon, XIcon } from "lucide-react"
+import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Menu, X, Home, BarChart3, Dumbbell, User, LogIn } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
+
+const navItems = [
+  { label: "Início", href: "/", icon: Home },
+  { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
+  { label: "Treinos", href: "/treinos", icon: Dumbbell },
+]
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
+  const [isOpen, setIsOpen] = useState(false)
+  const { isAuthenticated, usuario } = useAuth()
 
-  const isActive = (path: string) => {
-    return pathname === path ? "text-blue-600" : "text-gray-600"
-  }
+  // Fechar menu ao clicar em um link
+  const closeMenu = () => setIsOpen(false)
 
   return (
-    <nav className="bg-white shadow-sm">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0 flex items-center">
-              <DumbbellIcon className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold">FitTracker</span>
-            </Link>
-          </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="container flex h-14 items-center">
+        <div className="flex w-full justify-between items-center">
+          <Link href="/" className="flex items-center font-bold text-xl">
+            FitTracker
+          </Link>
 
-          {/* Desktop menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link href="/calendario" className={`flex items-center ${isActive("/calendario")}`}>
-              <CalendarIcon className="h-5 w-5 mr-1" />
-              <span>Calendário</span>
-            </Link>
-            <Link href="/dashboard" className={`flex items-center ${isActive("/dashboard")}`}>
-              <BarChart3Icon className="h-5 w-5 mr-1" />
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/treinos" className={`flex items-center ${isActive("/treinos")}`}>
-              <DumbbellIcon className="h-5 w-5 mr-1" />
-              <span>Treinos</span>
-            </Link>
-            <Link href="/perfil" className={`flex items-center ${isActive("/perfil")}`}>
-              <UserIcon className="h-5 w-5 mr-1" />
-              <span>Perfil</span>
-            </Link>
-          </div>
+          {/* Desktop navigation */}
+          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center text-sm font-medium transition-colors hover:text-primary",
+                  pathname === item.href
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                <item.icon className="h-4 w-4 mr-2" />
+                {item.label}
+              </Link>
+            ))}
+            
+            {isAuthenticated ? (
+              <Link
+                href="/perfil"
+                className={cn(
+                  "flex items-center text-sm font-medium transition-colors hover:text-primary",
+                  pathname === "/perfil"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                <User className="h-4 w-4 mr-2" />
+                {usuario?.nome || "Perfil"}
+              </Link>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/login" className="flex items-center">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Entrar
+                </Link>
+              </Button>
+            )}
+          </nav>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-blue-600 focus:outline-none"
-            >
-              {isOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
-            </button>
-          </div>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="inline-flex md:hidden items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          >
+            <span className="sr-only">Abrir menu</span>
+            {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile navigation */}
       {isOpen && (
-        <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link
-              href="/calendario"
-              className={`block px-3 py-2 rounded-md ${isActive("/calendario") ? "bg-blue-50" : ""}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="flex items-center">
-                <CalendarIcon className="h-5 w-5 mr-2" />
-                <span>Calendário</span>
-              </div>
-            </Link>
-            <Link
-              href="/dashboard"
-              className={`block px-3 py-2 rounded-md ${isActive("/dashboard") ? "bg-blue-50" : ""}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="flex items-center">
-                <BarChart3Icon className="h-5 w-5 mr-2" />
-                <span>Dashboard</span>
-              </div>
-            </Link>
-            <Link
-              href="/treinos"
-              className={`block px-3 py-2 rounded-md ${isActive("/treinos") ? "bg-blue-50" : ""}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="flex items-center">
-                <DumbbellIcon className="h-5 w-5 mr-2" />
-                <span>Treinos</span>
-              </div>
-            </Link>
-            <Link
-              href="/perfil"
-              className={`block px-3 py-2 rounded-md ${isActive("/perfil") ? "bg-blue-50" : ""}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <div className="flex items-center">
-                <UserIcon className="h-5 w-5 mr-2" />
-                <span>Perfil</span>
-              </div>
-            </Link>
-          </div>
+        <div className="md:hidden p-4 border-t">
+          <nav className="flex flex-col space-y-4">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center text-sm font-medium transition-colors hover:text-primary p-2 rounded-md",
+                  pathname === item.href
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={closeMenu}
+              >
+                <item.icon className="h-4 w-4 mr-2" />
+                {item.label}
+              </Link>
+            ))}
+            
+            {isAuthenticated ? (
+              <Link
+                href="/perfil"
+                className={cn(
+                  "flex items-center text-sm font-medium transition-colors hover:text-primary p-2 rounded-md",
+                  pathname === "/perfil"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={closeMenu}
+              >
+                <User className="h-4 w-4 mr-2" />
+                {usuario?.nome || "Perfil"}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center text-sm font-medium transition-colors hover:text-primary p-2 rounded-md"
+                onClick={closeMenu}
+              >
+                <LogIn className="h-4 w-4 mr-2" />
+                Entrar
+              </Link>
+            )}
+          </nav>
         </div>
       )}
-    </nav>
+    </header>
   )
 }
