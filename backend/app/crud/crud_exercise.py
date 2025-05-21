@@ -1,5 +1,5 @@
 # CRUD operations for Exercise model
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Union, Dict, Any
 
 from app.crud.base import CRUDBase
@@ -29,7 +29,33 @@ class CRUDExercicio(CRUDBase[Exercicio, ExercicioCreate, ExercicioUpdate]):
             .limit(limit)
             .all()
         )
-    
+
+    def get_multi_filtered(
+        self, 
+        db: Session, 
+        *, 
+        user_id: int, 
+        skip: int = 0, 
+        limit: int = 100,
+        grupo_muscular: Optional[str] = None,
+        equipamento: Optional[str] = None,
+        dificuldade: Optional[str] = None,
+        nome: Optional[str] = None
+    ) -> List[Exercicio]:
+        query = db.query(self.model).filter(
+            (Exercicio.publico == True) | (Exercicio.usuario_id == user_id)
+        )
+        if grupo_muscular:
+            query = query.filter(Exercicio.grupo_muscular.ilike(f"%{grupo_muscular}%"))
+        if equipamento:
+            query = query.filter(Exercicio.equipamento.ilike(f"%{equipamento}%"))
+        if dificuldade:
+            query = query.filter(Exercicio.dificuldade == dificuldade)
+        if nome:
+            query = query.filter(Exercicio.nome.ilike(f"%{nome}%"))
+        
+        return query.offset(skip).limit(limit).all()
+
     def get_public_or_owner(self, db: Session, *, id: int, user_id: Optional[int]) -> Optional[Exercicio]:
         """Get an exercise if it's public or owned by the user."""
         exercise = db.query(self.model).filter(self.model.id == id).first()
