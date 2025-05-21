@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ApiStatus from "@/components/api-status";
 
 export default function CadastroPage() {
   const [nome, setNome] = useState("");
@@ -159,6 +160,11 @@ export default function CadastroPage() {
           </div>
         </CardFooter>
       </Card>
+      
+      {/* Componente de debug - remova em produção */}
+      <div className="mt-8">
+        <ApiStatus />
+      </div>
     </div>
   );
 }

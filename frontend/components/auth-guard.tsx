@@ -10,7 +10,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Ignora enquanto está carregando
     if (isLoading) return;
 
     // Rotas públicas que não precisam de autenticação
@@ -29,7 +28,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, isLoading, router, pathname]);
 
-  // Mostrar nada enquanto verifica a autenticação
+  // Mostrar indicador de carregamento enquanto verifica a autenticação
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Carregando...</div>;
   }

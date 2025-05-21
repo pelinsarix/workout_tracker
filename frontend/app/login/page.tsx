@@ -116,12 +116,6 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-4 text-center text-sm">
-            <p>
-              Dica para teste: use qualquer e-mail que termine com @teste.com e uma senha com mais de 5 caracteres
-            </p>
-          </div>
         </CardContent>
         <CardFooter className="flex flex-col">
           <div className="text-center text-sm">
