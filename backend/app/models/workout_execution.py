@@ -3,6 +3,10 @@ from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
+from app.models.user import User # Import User
+from app.models.workout import TreinoFixo # Import TreinoFixo
+from app.models.exercise import Exercicio # Import Exercicio
+from app.models.workout import ExercicioTreino # Import ExercicioTreino
 
 class ExecucaoTreino(Base):
     __tablename__ = "execucao_treino"
@@ -12,14 +16,15 @@ class ExecucaoTreino(Base):
     treino_fixo_id = Column(Integer, ForeignKey("treino_fixo.id"), nullable=False)
     data_inicio = Column(DateTime, nullable=False, default=func.now())
     data_fim = Column(DateTime, nullable=True)
-    peso_usuario = Column(Float, nullable=True)
+    duracao_minutos = Column(Integer, nullable=True)  # Duração manual em minutos
+    peso_usuario = Column(Float, nullable=True) # Renomeado de peso_corporal para consistência com frontend (ou vice-versa)
     observacoes = Column(Text, nullable=True)
     data_criacao = Column(DateTime, default=func.now())
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # usuario = relationship("User", back_populates="execucoes_treino")
-    # treino_fixo = relationship("TreinoFixo", back_populates="execucoes_treino")
-    # exercicios_executados = relationship("ExecucaoExercicio", back_populates="execucao_treino", cascade="all, delete-orphan")
+    usuario = relationship("User", back_populates="execucoes_treino")
+    treino_fixo = relationship("TreinoFixo", back_populates="execucoes")
+    exercicios_executados = relationship("ExecucaoExercicio", back_populates="execucao_treino", cascade="all, delete-orphan")
 
 class ExecucaoExercicio(Base):
     __tablename__ = "execucao_exercicio"
@@ -27,14 +32,16 @@ class ExecucaoExercicio(Base):
     id = Column(Integer, primary_key=True, index=True)
     execucao_treino_id = Column(Integer, ForeignKey("execucao_treino.id", ondelete="CASCADE"), nullable=False)
     exercicio_id = Column(Integer, ForeignKey("exercicio.id"), nullable=False)
-    exercicio_treino_id = Column(Integer, ForeignKey("exercicio_treino.id"), nullable=True) # Can be null if exercise is added ad-hoc
+    # exercicio_treino_id = Column(Integer, ForeignKey("exercicio_treino.id"), nullable=True) # Mantido, mas considerar se é sempre necessário
+    ordem = Column(Integer, nullable=False) # Adicionado campo ordem para manter a ordem dos exercícios na execução
+    observacoes = Column(Text, nullable=True) # Adicionado campo observacoes para o exercício específico
     data_criacao = Column(DateTime, default=func.now())
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # execucao_treino = relationship("ExecucaoTreino", back_populates="exercicios_executados")
-    # exercicio = relationship("Exercicio") # No back_populates needed if not traversing from Exercicio to ExecucaoExercicio
-    # exercicio_treino_info = relationship("ExercicioTreino") # If needed
-    # series = relationship("Serie", back_populates="execucao_exercicio", cascade="all, delete-orphan")
+    execucao_treino = relationship("ExecucaoTreino", back_populates="exercicios_executados")
+    exercicio = relationship("Exercicio") 
+    # exercicio_treino_info = relationship("ExercicioTreino") # Opcional
+    series = relationship("Serie", back_populates="execucao_exercicio", cascade="all, delete-orphan")
 
 class Serie(Base):
     __tablename__ = "serie"
@@ -48,4 +55,4 @@ class Serie(Base):
     data_criacao = Column(DateTime, default=func.now())
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # execucao_exercicio = relationship("ExecucaoExercicio", back_populates="series")
+    execucao_exercicio = relationship("ExecucaoExercicio", back_populates="series")

@@ -3,10 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Usuario, AuthState } from "@/lib/types";
-import axios from "axios";
-
-// URL base da API - corrigindo para usar a porta correta do FastAPI
-const API_URL = 'http://localhost:8000/api/v1';
+import api from "@/lib/api";
 
 interface AuthContextType extends AuthState {
   login: (email: string, senha: string) => Promise<boolean>;
@@ -26,11 +23,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const router = useRouter();
 
-  // Configurar o axios para incluir o token em todas as requisições
-  const setupAxiosInterceptors = (token: string) => {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  };
-
   // Verificar se o usuário está autenticado no carregamento inicial
   useEffect(() => {
     const verificarAuth = async () => {
@@ -43,12 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Configurar axios com o token
-        setupAxiosInterceptors(token);
-
         try {
           // Verificar token com o backend
-          const { data } = await axios.post(`${API_URL}/auth/test-token`);
+          const { data } = await api.post(`/auth/test-token`);
           
           // Converter para o formato do nosso modelo
           const usuario: Usuario = {
@@ -84,18 +73,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      // FormData é necessário para o endpoint OAuth2 do FastAPI
-      const formData = new FormData();
-      formData.append('username', email);
-      formData.append('password', senha);
-      
-      const { data } = await axios.post(`${API_URL}/auth/login`, formData);
+      // URL-encoded body para OAuth2PasswordRequestForm
+      const body = new URLSearchParams();
+      body.append('username', email);
+      body.append('password', senha);
+      const { data } = await api.post('/auth/login', body, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
       
       // Armazenar token
       localStorage.setItem("fittracker_token", data.access_token);
-      
-      // Configurar axios com o token
-      setupAxiosInterceptors(data.access_token);
       
       // Converter para o formato do nosso modelo
       const usuario: Usuario = {
@@ -125,39 +112,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setState(prev => ({ ...prev, isLoading: true }));
       
-      console.log("Enviando requisição para:", `${API_URL}/auth/register`);
-      
       // No nosso esquema backend, renomeamos 'senha' para 'password'
-      const { data } = await axios.post(`${API_URL}/auth/register`, {
+      const { data } = await api.post('/auth/register', {
         nome: dadosCadastro.nome,
         email: dadosCadastro.email,
         password: dadosCadastro.senha,
-      }, {
-        // Adicionando timeouts e configurações para debug
-        timeout: 10000,
-        headers: {
-          'Content-Type': 'application/json',
-        }
       });
       
-      console.log("Resposta do registro:", data);
-      
-      // Depois do registro, precisamos fazer login
+      // Após registro, fazer login
       return await login(dadosCadastro.email, dadosCadastro.senha);
     } catch (error) {
-      console.error("Erro ao cadastrar:", error);
-      // Log detalhado do erro para debug
-      if (axios.isAxiosError(error)) {
-        console.log("Detalhes do erro:", {
-          message: error.message,
-          response: error.response ? {
-            data: error.response.data,
-            status: error.response.status,
-            headers: error.response.headers
-          } : 'No response',
-          request: error.request ? 'Request was made but no response received' : 'No request made'
-        });
-      }
+      console.error('Erro ao cadastrar:', error);
       setState(prev => ({ ...prev, isLoading: false }));
       return false;
     }
@@ -165,8 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("fittracker_token");
-    // Limpar cabeçalho de autorização
-    delete axios.defaults.headers.common['Authorization'];
+    // Token será removido automaticamente pelo interceptor ao não encontrá-lo
     setState({ isAuthenticated: false, isLoading: false, usuario: null });
     router.push("/login");
   };
@@ -183,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         idade: dadosUsuario.idade,
       };
       
-      const { data } = await axios.put(`${API_URL}/usuarios/me`, dadosAPI);
+      const { data } = await api.put(`/usuarios/me`, dadosAPI);
       
       // Converter para o formato do nosso modelo
       const usuarioAtualizado: Usuario = {

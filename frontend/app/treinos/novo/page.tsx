@@ -9,16 +9,55 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
+import { TreinosApi } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 export default function NovoTreinoPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [nome, setNome] = useState("")
   const [descricao, setDescricao] = useState("")
+  const [tempoDescanso, setTempoDescanso] = useState("60")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aqui você salvaria os dados do novo treino
-    router.push("/treinos/novo/exercicios")
+    
+    if (!nome) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe um nome para o treino",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      
+      const novoTreino = await TreinosApi.criarTreino({
+        nome,
+        descricao: descricao || undefined,
+        tempo_descanso_global: parseInt(tempoDescanso) || 60
+      })
+      
+      toast({
+        title: "Treino criado com sucesso!",
+        description: "Agora você pode adicionar exercícios ao seu treino."
+      })
+      
+      // Redirecionar para a página do treino recém-criado
+      router.push(`/treinos/${novoTreino.id}`)
+    } catch (error) {
+      console.error("Erro ao criar treino:", error)
+      toast({
+        title: "Erro ao criar treino",
+        description: "Ocorreu um erro ao criar o treino. Tente novamente.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -50,13 +89,27 @@ export default function NovoTreinoPage() {
                 rows={3}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tempoDescanso">Tempo de Descanso Global (segundos)</Label>
+              <Input
+                id="tempoDescanso"
+                type="number"
+                value={tempoDescanso}
+                onChange={(e) => setTempoDescanso(e.target.value)}
+                placeholder="60"
+                min={0}
+              />
+            </div>
           </form>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit}>Próximo: Adicionar Exercícios</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Salvando..." : "Salvar Treino"}
+          </Button>
         </CardFooter>
       </Card>
     </div>

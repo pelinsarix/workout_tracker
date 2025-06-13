@@ -30,9 +30,9 @@ def test_use_access_token(
     r = client.post(f"{settings.API_V1_STR}/auth/login", data=login_data)
     response_data = r.json()
     token = response_data["access_token"]
-    
     headers = {"Authorization": f"Bearer {token}"}
-    r_user = client.get(f"{settings.API_V1_STR}/usuarios/me", headers=headers)
+    # Use auth test-token endpoint to validate token
+    r_user = client.post(f"{settings.API_V1_STR}/auth/test-token", headers=headers)
     assert r_user.status_code == 200
     current_user = r_user.json()
     assert current_user["email"] == user.email

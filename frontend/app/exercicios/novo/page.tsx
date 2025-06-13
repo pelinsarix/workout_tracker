@@ -11,27 +11,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, Save, Upload, X } from "lucide-react"
+import { ArrowLeft, Save } from "lucide-react"
 import { motion } from "framer-motion"
+import { ExerciciosApi } from "@/lib/api"
 
 export default function NovoExercicioPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Estado para o exercício
   const [exercicio, setExercicio] = useState({
     nome: "",
-    grupoMuscular: "",
+    grupo_muscular: "",
     equipamento: "",
     descricao: "",
     instrucoes: "",
     dificuldade: "intermediario",
+    publico: false
   })
-
-  // Estado para a imagem
-  const [imagem, setImagem] = useState<File | null>(null)
-  const [imagemPreview, setImagemPreview] = useState<string | null>(null)
-  const [arrastando, setArrastando] = useState(false)
 
   // Grupos musculares disponíveis
   const gruposMusculares = [
@@ -74,44 +72,7 @@ export default function NovoExercicioPage() {
     setExercicio((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleImagemChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setImagem(file)
-      setImagemPreview(URL.createObjectURL(file))
-    }
-  }
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setArrastando(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setArrastando(false)
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setArrastando(false)
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0]
-      setImagem(file)
-      setImagemPreview(URL.createObjectURL(file))
-    }
-  }
-
-  const removerImagem = () => {
-    setImagem(null)
-    if (imagemPreview) {
-      URL.revokeObjectURL(imagemPreview)
-      setImagemPreview(null)
-    }
-  }
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validação básica
     if (!exercicio.nome.trim()) {
       toast({
@@ -122,7 +83,7 @@ export default function NovoExercicioPage() {
       return
     }
 
-    if (!exercicio.grupoMuscular) {
+    if (!exercicio.grupo_muscular) {
       toast({
         title: "Erro ao salvar",
         description: "Selecione pelo menos um grupo muscular.",
@@ -131,17 +92,28 @@ export default function NovoExercicioPage() {
       return
     }
 
-    // Aqui você enviaria os dados para a API
-    console.log("Salvando exercício:", exercicio)
-    console.log("Imagem:", imagem)
+    try {
+      setIsSubmitting(true)
+      // Enviar dados para a API
+      await ExerciciosApi.criarExercicio(exercicio)
+      
+      toast({
+        title: "Exercício salvo",
+        description: "O exercício foi cadastrado com sucesso.",
+      })
 
-    toast({
-      title: "Exercício salvo",
-      description: "O exercício foi cadastrado com sucesso.",
-    })
-
-    // Redirecionar para a lista de exercícios
-    router.push("/exercicios")
+      // Redirecionar para a lista de exercícios
+      router.push("/exercicios")
+    } catch (error) {
+      console.error("Erro ao salvar exercício:", error)
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao salvar o exercício. Tente novamente.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -175,8 +147,8 @@ export default function NovoExercicioPage() {
                 <div>
                   <Label htmlFor="grupoMuscular">Grupo Muscular Principal</Label>
                   <Select
-                    value={exercicio.grupoMuscular}
-                    onValueChange={(value) => handleSelectChange("grupoMuscular", value)}
+                    value={exercicio.grupo_muscular}
+                    onValueChange={(value) => handleSelectChange("grupo_muscular", value)}
                   >
                     <SelectTrigger id="grupoMuscular" className="mt-1">
                       <SelectValue placeholder="Selecione o grupo muscular" />
@@ -228,50 +200,8 @@ export default function NovoExercicioPage() {
                 </div>
               </div>
 
-              {/* Coluna da direita - Imagem e descrições */}
+              {/* Coluna da direita - Descrições */}
               <div className="space-y-4">
-                <div>
-                  <Label>Imagem ou GIF do Exercício</Label>
-                  <div
-                    className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center ${
-                      arrastando ? "border-primary bg-primary/5" : "border-gray-300"
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    {imagemPreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagemPreview || "/placeholder.svg"}
-                          alt="Preview"
-                          className="mx-auto max-h-48 rounded-md object-contain"
-                        />
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2 h-6 w-6 rounded-full"
-                          onClick={removerImagem}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="py-4">
-                        <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">
-                          Arraste e solte uma imagem aqui, ou{" "}
-                          <label className="text-primary cursor-pointer hover:underline">
-                            selecione um arquivo
-                            <input type="file" className="hidden" accept="image/*" onChange={handleImagemChange} />
-                          </label>
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">PNG, JPG ou GIF (máx. 5MB)</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 <div>
                   <Label htmlFor="descricao">Descrição</Label>
                   <Textarea
@@ -280,7 +210,7 @@ export default function NovoExercicioPage() {
                     value={exercicio.descricao}
                     onChange={handleInputChange}
                     placeholder="Breve descrição do exercício e seus benefícios"
-                    rows={2}
+                    rows={4}
                     className="mt-1"
                   />
                 </div>
@@ -304,9 +234,13 @@ export default function NovoExercicioPage() {
             <Button variant="outline" onClick={() => router.back()}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} className="flex items-center gap-1">
+            <Button 
+              onClick={handleSubmit} 
+              className="flex items-center gap-1"
+              disabled={isSubmitting}
+            >
               <Save className="h-4 w-4" />
-              Salvar Exercício
+              {isSubmitting ? "Salvando..." : "Salvar Exercício"}
             </Button>
           </CardFooter>
         </Card>

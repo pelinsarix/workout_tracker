@@ -4,10 +4,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format } from "date-fns"
+import { format, subDays } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import {
   BarChart,
   Bar,
@@ -16,167 +14,256 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   PieChart,
   Pie,
   Cell,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
 } from "recharts"
 import {
-  CalendarIcon,
-  TrendingUpIcon,
-  BarChart3Icon,
-  PieChartIcon,
-  ActivityIcon,
   DumbbellIcon,
   ClockIcon,
   CalendarDaysIcon,
-  FilterIcon,
-  DownloadIcon,
-  ArrowRightIcon,
-  Target,
+  ActivityIcon,
   Award,
   Flame,
-  Plus,
+  Target,
+  BarChart3Icon,
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
+import { ExecucoesTreinoApi, TreinosApi } from "@/lib/api"
+import { TreinoExecucao, TreinoFixo } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
-// Dados de exemplo para os gráficos
-const treinoData = [
-  { name: "Jan", Peso: 65, Repetições: 20, Carga: 30 },
-  { name: "Fev", Peso: 68, Repetições: 22, Carga: 35 },
-  { name: "Mar", Peso: 67, Repetições: 25, Carga: 40 },
-  { name: "Abr", Peso: 70, Repetições: 28, Carga: 45 },
-  { name: "Mai", Peso: 72, Repetições: 30, Carga: 50 },
-  { name: "Jun", Peso: 74, Repetições: 32, Carga: 55 },
-  { name: "Jul", Peso: 75, Repetições: 35, Carga: 60 },
-]
-
-const checkInsData = [
-  { name: "Jan", CheckIns: 12 },
-  { name: "Fev", CheckIns: 15 },
-  { name: "Mar", CheckIns: 18 },
-  { name: "Abr", CheckIns: 16 },
-  { name: "Mai", CheckIns: 20 },
-  { name: "Jun", CheckIns: 22 },
-  { name: "Jul", CheckIns: 24 },
-]
-
-const exerciciosData = [
-  { name: "Agachamento", valor: 85 },
-  { name: "Supino", valor: 70 },
-  { name: "Leg Press", valor: 90 },
-  { name: "Puxada", valor: 65 },
-  { name: "Stiff", valor: 75 },
-]
-
-const gruposMuscularesData = [
-  { name: "Pernas", value: 35 },
-  { name: "Peito", value: 25 },
-  { name: "Costas", value: 20 },
-  { name: "Ombros", value: 10 },
-  { name: "Braços", value: 10 },
-]
-
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
-
-const desempenhoRadarData = [
-  { subject: "Força", A: 80, B: 60 },
-  { subject: "Resistência", A: 70, B: 50 },
-  { subject: "Frequência", A: 90, B: 70 },
-  { subject: "Intensidade", A: 65, B: 45 },
-  { subject: "Consistência", A: 85, B: 65 },
-]
-
-// Dados para o gráfico de progresso semanal
-const progressoSemanalData = [
-  { day: "Dom", volume: 0, meta: 1000 },
-  { day: "Seg", volume: 1200, meta: 1000 },
-  { day: "Ter", volume: 800, meta: 1000 },
-  { day: "Qua", volume: 1500, meta: 1000 },
-  { day: "Qui", volume: 1100, meta: 1000 },
-  { day: "Sex", volume: 1300, meta: 1000 },
-  { day: "Sáb", volume: 0, meta: 1000 },
-]
-
-// Dados para o gráfico de evolução de peso
-const evolucaoPesoData = [
-  { date: "Jan", peso: 75 },
-  { date: "Fev", peso: 74 },
-  { date: "Mar", peso: 73.5 },
-  { date: "Abr", peso: 72 },
-  { date: "Mai", peso: 71 },
-  { date: "Jun", peso: 70.5 },
-  { date: "Jul", peso: 70 },
-]
-
-// Dados para o gráfico de metas
-const metasData = [
-  { name: "Treinos", completado: 80, meta: 100 },
-  { name: "Carga", completado: 65, meta: 100 },
-  { name: "Cardio", completado: 45, meta: 100 },
-  { name: "Proteína", completado: 90, meta: 100 },
-]
-
-// Dados para o gráfico de exercícios mais realizados
-const exerciciosMaisRealizadosData = [
-  { name: "Agachamento", count: 24 },
-  { name: "Supino", count: 20 },
-  { name: "Leg Press", count: 18 },
-  { name: "Puxada", count: 16 },
-  { name: "Stiff", count: 14 },
-]
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
 
 export default function DashboardPage() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [periodo, setPeriodo] = useState("mes")
-  const [metrica, setMetrica] = useState("peso")
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("visao-geral")
+  const [periodoFiltro, setPeriodoFiltro] = useState("30d") // 7d, 30d, 90d, 365d
+  const { toast } = useToast()
 
-  // Simular carregamento
+  // Estados para dados
+  const [execucoesTreino, setExecucoesTreino] = useState<TreinoExecucao[]>([])
+  const [treinosFixos, setTreinosFixos] = useState<TreinoFixo[]>([])
+
+  // Carregar dados
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    const carregarDados = async () => {
+      try {
+        setIsLoading(true)
+        const [execucoes, treinos] = await Promise.all([
+          ExecucoesTreinoApi.listarTodasExecucoesUsuario(0, 1000),
+          TreinosApi.listarTreinos()
+        ])
+        setExecucoesTreino(execucoes)
+        setTreinosFixos(treinos)
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados do dashboard.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    return () => clearTimeout(timer)
+    carregarDados()
   }, [])
 
-  // Estatísticas resumidas
+  // Filtrar execuções por período
+  const getDataInicio = () => {
+    const hoje = new Date()
+    switch (periodoFiltro) {
+      case "7d": return subDays(hoje, 7)
+      case "30d": return subDays(hoje, 30)
+      case "90d": return subDays(hoje, 90)
+      case "365d": return subDays(hoje, 365)
+      default: return subDays(hoje, 30)
+    }
+  }
+
+  const execucoesFiltradas = execucoesTreino.filter(execucao => {
+    const dataExecucao = new Date(execucao.data_inicio)
+    const dataInicio = getDataInicio()
+    return dataExecucao >= dataInicio // Mostrar todas as execuções no período
+  })
+
+  // Calcular estatísticas
+  const calcularEstatisticas = () => {
+    const totalTreinos = execucoesFiltradas.length
+    
+    const tempoTotal = execucoesFiltradas.reduce((total, execucao) => {
+      if (execucao.duracao_minutos) {
+        return total + execucao.duracao_minutos
+      }
+      if (execucao.data_fim) {
+        const inicio = new Date(execucao.data_inicio)
+        const fim = new Date(execucao.data_fim)
+        const diferencaMs = fim.getTime() - inicio.getTime()
+        const minutos = Math.floor(diferencaMs / (1000 * 60))
+        return total + minutos
+      }
+      // Para execuções em andamento, calcular o tempo até agora
+      if (execucao.data_inicio) {
+        const inicio = new Date(execucao.data_inicio)
+        const agora = new Date()
+        const diferencaMs = agora.getTime() - inicio.getTime()
+        const minutos = Math.floor(diferencaMs / (1000 * 60))
+        return total + minutos
+      }
+      return total
+    }, 0)
+
+    const diasUnicos = new Set(
+      execucoesFiltradas.map(execucao => 
+        format(new Date(execucao.data_inicio), "yyyy-MM-dd")
+      )
+    ).size
+
+    const totalExercicios = execucoesFiltradas.reduce((total, execucao) => 
+      total + (execucao.exercicios_executados?.length || 0), 0
+    )
+
+    const totalSeries = execucoesFiltradas.reduce((total, execucao) => 
+      total + (execucao.exercicios_executados?.reduce((subTotal, ex) => 
+        subTotal + (ex.series?.length || 0), 0
+      ) || 0), 0
+    )
+
+    return {
+      totalTreinos,
+      tempoTotal,
+      diasUnicos,
+      totalExercicios,
+      totalSeries,
+      mediaTreinosPorDia: diasUnicos > 0 ? (totalTreinos / diasUnicos).toFixed(1) : "0"
+    }
+  }
+
+  const stats = calcularEstatisticas()
+
+  // Dados para gráfico de treinos por dia
+  const dadosTreinosPorDia = () => {
+    const agrupados: Record<string, number> = {}
+    
+    execucoesFiltradas.forEach(execucao => {
+      const data = format(new Date(execucao.data_inicio), "dd/MM")
+      agrupados[data] = (agrupados[data] || 0) + 1
+    })
+
+    return Object.entries(agrupados)
+      .map(([data, quantidade]) => ({ data, quantidade }))
+      .sort((a, b) => {
+        const dateA = new Date(a.data.split('/').reverse().join('-'))
+        const dateB = new Date(b.data.split('/').reverse().join('-'))
+        return dateA.getTime() - dateB.getTime()
+      })
+      .slice(-14) // Últimos 14 dias
+  }
+
+  // Dados para gráfico de tipos de treino
+  const dadosTiposTreino = () => {
+    const tipos: Record<string, number> = {}
+    
+    execucoesFiltradas.forEach(execucao => {
+      const tipo = execucao.treino_fixo?.nome || 'Sem nome'
+      tipos[tipo] = (tipos[tipo] || 0) + 1
+    })
+
+    return Object.entries(tipos).map(([name, value]) => ({ name, value }))
+  }
+
+  // Dados para gráfico de duração por treino
+  const dadosDuracaoTreinos = () => {
+    return execucoesFiltradas.slice(-10).map((execucao, index) => {
+      let duracao = 0
+      if (execucao.duracao_minutos) {
+        duracao = execucao.duracao_minutos
+      } else if (execucao.data_fim) {
+        const inicio = new Date(execucao.data_inicio)
+        const fim = new Date(execucao.data_fim)
+        duracao = Math.floor((fim.getTime() - inicio.getTime()) / (1000 * 60))
+      } else if (execucao.data_inicio) {
+        // Para execuções em andamento, calcular o tempo até agora
+        const inicio = new Date(execucao.data_inicio)
+        const agora = new Date()
+        duracao = Math.floor((agora.getTime() - inicio.getTime()) / (1000 * 60))
+      }
+      
+      return {
+        treino: `#${index + 1}`,
+        duracao,
+        nome: execucao.treino_fixo?.nome || 'Sem nome'
+      }
+    })
+  }
+
+  // Estatísticas de cards
   const estatisticas = [
-    { titulo: "Treinos Realizados", valor: "45", icone: DumbbellIcon, cor: "bg-blue-100 text-blue-600" },
-    { titulo: "Tempo Total", valor: "32h 15m", icone: ClockIcon, cor: "bg-green-100 text-green-600" },
-    { titulo: "Dias Ativos", valor: "28", icone: CalendarDaysIcon, cor: "bg-purple-100 text-purple-600" },
-    { titulo: "Progresso Médio", valor: "+12%", icone: TrendingUpIcon, cor: "bg-orange-100 text-orange-600" },
+    { 
+      titulo: "Treinos Realizados", 
+      valor: stats.totalTreinos.toString(), 
+      icone: DumbbellIcon, 
+      cor: "bg-blue-100 text-blue-600",
+      descricao: `${stats.mediaTreinosPorDia} por dia em média`
+    },
+    { 
+      titulo: "Tempo Total", 
+      valor: `${Math.floor(stats.tempoTotal / 60)}h ${stats.tempoTotal % 60}m`, 
+      icone: ClockIcon, 
+      cor: "bg-green-100 text-green-600",
+      descricao: `${Math.round(stats.tempoTotal / stats.totalTreinos || 0)}min por treino`
+    },
+    { 
+      titulo: "Dias Ativos", 
+      valor: stats.diasUnicos.toString(), 
+      icone: CalendarDaysIcon, 
+      cor: "bg-purple-100 text-purple-600",
+      descricao: `${Math.round((stats.diasUnicos / parseInt(periodoFiltro)) * 100)}% do período`
+    },
+    { 
+      titulo: "Total de Séries", 
+      valor: stats.totalSeries.toString(), 
+      icone: ActivityIcon, 
+      cor: "bg-orange-100 text-orange-600",
+      descricao: `${Math.round(stats.totalSeries / stats.totalTreinos || 0)} por treino`
+    },
   ]
 
-  // Renderizar skeleton loader
+  // Renderizar skeleton
   const renderSkeleton = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-[100px] rounded-lg" />
+          <Skeleton key={i} className="h-[120px] rounded-lg" />
         ))}
       </div>
-
-      <Skeleton className="h-[400px] rounded-lg" />
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Skeleton className="h-[300px] rounded-lg" />
-        <Skeleton className="h-[300px] rounded-lg" />
+        <Skeleton className="h-[400px] rounded-lg" />
+        <Skeleton className="h-[400px] rounded-lg" />
       </div>
+      <Skeleton className="h-[400px] rounded-lg" />
     </div>
   )
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-gray-600">Acompanhe seu progresso e desempenho</p>
+          </div>
+        </div>
+        {renderSkeleton()}
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -185,576 +272,289 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-gray-600">Acompanhe seu progresso e desempenho</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                {date ? format(date, "dd/MM/yyyy") : "Selecionar data"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-            </PopoverContent>
-          </Popover>
-          <Button variant="outline" className="flex items-center gap-2">
-            <DownloadIcon className="h-4 w-4" />
-            Exportar
-          </Button>
+        <div className="flex gap-2 mt-4 md:mt-0">
+          <Select value={periodoFiltro} onValueChange={setPeriodoFiltro}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">7 dias</SelectItem>
+              <SelectItem value="30d">30 dias</SelectItem>
+              <SelectItem value="90d">3 meses</SelectItem>
+              <SelectItem value="365d">1 ano</SelectItem>
+            </SelectContent>
+          </Select>
+          <Link href="/treinos/novo">
+            <Button size="sm">Novo Treino</Button>
+          </Link>
         </div>
       </div>
 
-      {isLoading ? (
-        renderSkeleton()
-      ) : (
-        <>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
-              <TabsTrigger value="progresso">Progresso</TabsTrigger>
-              <TabsTrigger value="metas">Metas</TabsTrigger>
-            </TabsList>
+      {/* Cards de Estatísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {estatisticas.map((stat, index) => {
+          const Icon = stat.icone
+          return (
+            <motion.div
+              key={stat.titulo}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.1 }}
+            >
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">{stat.titulo}</p>
+                      <p className="text-2xl font-bold">{stat.valor}</p>
+                      <p className="text-xs text-gray-500 mt-1">{stat.descricao}</p>
+                    </div>
+                    <div className={`p-3 rounded-full ${stat.cor}`}>
+                      <Icon className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )
+        })}
+      </div>
 
-            <TabsContent value="visao-geral" className="space-y-6">
-              {/* Cards de estatísticas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {estatisticas.map((stat, index) => (
-                  <motion.div
-                    key={stat.titulo}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-gray-500">{stat.titulo}</p>
-                            <p className="text-2xl font-bold mt-1">{stat.valor}</p>
-                          </div>
-                          <div className={`p-3 rounded-full ${stat.cor}`}>
-                            <stat.icone className="h-6 w-6" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+      {/* Gráficos */}
+      <div className="space-y-6">
+        {/* Treinos por Dia */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3Icon className="h-5 w-5" />
+              Treinos por Dia
+            </CardTitle>
+            <CardDescription>
+              Frequência de treinos nos últimos 14 dias
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dadosTreinosPorDia()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="data" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="quantidade" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Tipos de Treino */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tipos de Treino</CardTitle>
+              <CardDescription>
+                Distribuição por tipo de treino
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={dadosTiposTreino()}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {dadosTiposTreino().map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Filtros */}
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <Card className="w-full sm:w-auto flex-1">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <FilterIcon className="h-5 w-5 text-gray-500" />
-                      <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                        <Select value={periodo} onValueChange={setPeriodo}>
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Período" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="semana">Última Semana</SelectItem>
-                            <SelectItem value="mes">Último Mês</SelectItem>
-                            <SelectItem value="trimestre">Último Trimestre</SelectItem>
-                            <SelectItem value="ano">Último Ano</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={metrica} onValueChange={setMetrica}>
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Métrica" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="peso">Peso</SelectItem>
-                            <SelectItem value="repeticoes">Repetições</SelectItem>
-                            <SelectItem value="carga">Carga</SelectItem>
-                            <SelectItem value="volume">Volume Total</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+          {/* Duração dos Treinos */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Duração dos Treinos</CardTitle>
+              <CardDescription>
+                Tempo gasto nos últimos 10 treinos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dadosDuracaoTreinos()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="treino" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value, name, props) => [
+                        `${value} min`,
+                        props.payload.nome
+                      ]}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="duracao" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      dot={{ fill: '#10b981' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
+            </CardContent>
+          </Card>
+        </div>
 
-              {/* Gráfico principal - Evolução por treino com área preenchida */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUpIcon className="h-5 w-5 text-blue-600" />
-                      Evolução por Treino
-                    </CardTitle>
-                    <CardDescription>Acompanhe seu progresso ao longo do tempo</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={treinoData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value, name) => [
-                              `${value} ${name === "Peso" ? "kg" : name === "Repetições" ? "reps" : "kg"}`,
-                            ]}
-                          />
-                          <Legend />
-                          <Area
-                            type="monotone"
-                            dataKey="Peso"
-                            stroke="#8884d8"
-                            fill="#8884d8"
-                            fillOpacity={0.3}
-                            activeDot={{ r: 8 }}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="Repetições"
-                            stroke="#82ca9d"
-                            fill="#82ca9d"
-                            fillOpacity={0.3}
-                          />
-                          <Area type="monotone" dataKey="Carga" stroke="#ffc658" fill="#ffc658" fillOpacity={0.3} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Gráficos secundários */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BarChart3Icon className="h-5 w-5 text-green-600" />
-                        Desempenho por Exercício
-                      </CardTitle>
-                      <CardDescription>Comparação entre seus principais exercícios</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={exerciciosData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "white",
-                                borderRadius: "8px",
-                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                              }}
-                              formatter={(value) => [`${value}%`]}
-                            />
-                            <Bar dataKey="valor" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <PieChartIcon className="h-5 w-5 text-orange-600" />
-                        Distribuição de Treinos
-                      </CardTitle>
-                      <CardDescription>Por grupo muscular</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={gruposMuscularesData}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {gruposMuscularesData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "white",
-                                borderRadius: "8px",
-                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                              }}
-                              formatter={(value) => [`${value}%`]}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+        {/* Resumo e Ações Rápidas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Objetivo Atual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600 mb-2">
+                  {stats.totalTreinos}
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  treinos realizados este mês
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-600 h-2 rounded-full" 
+                    style={{ width: `${Math.min((stats.totalTreinos / 20) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Meta: 20 treinos/mês
+                </p>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Gráfico de análise de desempenho */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ActivityIcon className="h-5 w-5 text-red-600" />
-                      Análise de Desempenho
-                    </CardTitle>
-                    <CardDescription>Atual vs. Mês Anterior</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius={80} data={desempenhoRadarData}>
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="subject" />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                          <Radar name="Atual" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                          <Radar name="Mês Anterior" dataKey="B" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.6} />
-                          <Legend />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            <TabsContent value="progresso" className="space-y-6">
-              {/* Progresso semanal */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CalendarDaysIcon className="h-5 w-5 text-blue-600" />
-                      Progresso Semanal
-                    </CardTitle>
-                    <CardDescription>Volume de treino por dia da semana</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={progressoSemanalData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="day" />
-                          <YAxis />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value) => [`${value} kg`]}
-                          />
-                          <Legend />
-                          <Area
-                            type="monotone"
-                            dataKey="volume"
-                            name="Volume"
-                            stroke="#8884d8"
-                            fill="#8884d8"
-                            fillOpacity={0.6}
-                            activeDot={{ r: 8 }}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="meta"
-                            name="Meta"
-                            stroke="#82ca9d"
-                            fill="#82ca9d"
-                            fillOpacity={0.2}
-                            strokeDasharray="5 5"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Evolução de peso */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUpIcon className="h-5 w-5 text-green-600" />
-                      Evolução de Peso Corporal
-                    </CardTitle>
-                    <CardDescription>Acompanhamento mensal</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={evolucaoPesoData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis domain={["dataMin - 2", "dataMax + 2"]} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value) => [`${value} kg`]}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="peso"
-                            name="Peso"
-                            stroke="#ff7300"
-                            fill="#ff7300"
-                            fillOpacity={0.3}
-                            activeDot={{ r: 8 }}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              {/* Exercícios mais realizados */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <DumbbellIcon className="h-5 w-5 text-purple-600" />
-                      Exercícios Mais Realizados
-                    </CardTitle>
-                    <CardDescription>Frequência de execução</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={exerciciosMaisRealizadosData}
-                          layout="vertical"
-                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis dataKey="name" type="category" width={100} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value) => [`${value} vezes`]}
-                          />
-                          <Bar dataKey="count" name="Frequência" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            <TabsContent value="metas" className="space-y-6">
-              {/* Cards de metas */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
-                >
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-blue-100 p-2 rounded-full">
-                            <Target className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <h3 className="font-medium">Meta de Treinos</h3>
-                        </div>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                          80%
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progresso</span>
-                          <span className="font-medium">12/15 treinos</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: "80%" }}></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
-                >
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-green-100 p-2 rounded-full">
-                            <Award className="h-5 w-5 text-green-600" />
-                          </div>
-                          <h3 className="font-medium">Meta de Peso</h3>
-                        </div>
-                        <Badge variant="outline" className="bg-green-50 text-green-700">
-                          65%
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progresso</span>
-                          <span className="font-medium">70kg / 68kg</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-green-600 h-2.5 rounded-full" style={{ width: "65%" }}></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
-                >
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-red-100 p-2 rounded-full">
-                            <Flame className="h-5 w-5 text-red-600" />
-                          </div>
-                          <h3 className="font-medium">Meta de Calorias</h3>
-                        </div>
-                        <Badge variant="outline" className="bg-red-50 text-red-700">
-                          45%
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Progresso</span>
-                          <span className="font-medium">1350/3000 kcal</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                          <div className="bg-red-600 h-2.5 rounded-full" style={{ width: "45%" }}></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Flame className="h-5 w-5" />
+                Sequência
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-orange-600 mb-2">
+                  {stats.diasUnicos}
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  dias ativos no período
+                </p>
+                <Badge variant={stats.diasUnicos >= 7 ? "default" : "secondary"}>
+                  {stats.diasUnicos >= 7 ? "🔥 Em chamas!" : "💪 Continue assim!"}
+                </Badge>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Gráfico de metas */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-blue-600" />
-                      Progresso das Metas
-                    </CardTitle>
-                    <CardDescription>Visão geral de todas as metas</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={metasData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" />
-                          <YAxis />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                            }}
-                            formatter={(value) => [`${value}%`]}
-                          />
-                          <Legend />
-                          <Bar dataKey="completado" name="Completado" stackId="a" fill="#8884d8" />
-                          <Bar dataKey="meta" name="Meta" stackId="a" fill="#82ca9d" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5" />
+                Conquistas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Primeira semana</span>
+                  <Badge variant={stats.totalTreinos >= 3 ? "default" : "outline"}>
+                    {stats.totalTreinos >= 3 ? "✅" : "⏳"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">10 treinos</span>
+                  <Badge variant={stats.totalTreinos >= 10 ? "default" : "outline"}>
+                    {stats.totalTreinos >= 10 ? "✅" : "⏳"}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Maratonista</span>
+                  <Badge variant={stats.tempoTotal >= 600 ? "default" : "outline"}>
+                    {stats.tempoTotal >= 600 ? "✅" : "⏳"}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-              {/* Adicionar nova meta */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Card className="bg-gray-50 border-dashed">
-                  <CardContent className="p-6 flex flex-col items-center justify-center text-center">
-                    <div className="bg-blue-100 p-3 rounded-full mb-3">
-                      <Plus className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <h3 className="font-medium text-lg mb-2">Adicionar Nova Meta</h3>
-                    <p className="text-gray-500 mb-4">
-                      Defina novas metas para acompanhar seu progresso e manter-se motivado.
-                    </p>
-                    <Button asChild>
-                      <Link href="/metas/nova" className="flex items-center gap-1">
-                        Criar Meta
-                        <ArrowRightIcon className="h-4 w-4 ml-1" />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+        {/* Ações Rápidas */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <DumbbellIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Novo Treino</h3>
+                  <p className="text-sm text-gray-600 mb-3">Criar um novo treino personalizado</p>
+                  <Link href="/treinos/novo">
+                    <Button size="sm" className="w-full">Criar Treino</Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-green-100 p-3 rounded-full">
+                  <CalendarDaysIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Ver Calendário</h3>
+                  <p className="text-sm text-gray-600 mb-3">Visualizar treinos no calendário</p>
+                  <Link href="/calendario">
+                    <Button size="sm" variant="outline" className="w-full">Abrir Calendário</Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-purple-100 p-3 rounded-full">
+                  <ActivityIcon className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Histórico</h3>
+                  <p className="text-sm text-gray-600 mb-3">Ver todos os treinos realizados</p>
+                  <Link href="/treinos">
+                    <Button size="sm" variant="outline" className="w-full">Ver Histórico</Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   )
 }

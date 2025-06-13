@@ -11,6 +11,13 @@ from datetime import timedelta
 
 router = APIRouter()
 
+@router.get("/ping")
+def ping():
+    """
+    Verificação simples para testar se a API está online
+    """
+    return {"message": "pong"}
+
 @router.post("/register", response_model=schemas.UserWithToken)
 def register_new_user(
     *, 

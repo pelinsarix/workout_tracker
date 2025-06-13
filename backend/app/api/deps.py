@@ -22,20 +22,26 @@ def get_db() -> Generator:
     finally:
         db.close()
 
+# Simplify token decoding and user retrieval
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(reusable_oauth2)
 ) -> models.User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        token_data = schemas.TokenPayload(**payload)
-    except (JWTError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
-    user = crud.user.get(db, id=token_data.sub)
+        sub = payload.get("sub")
+        if sub is None:
+            raise credentials_exception
+        user_id = int(sub)
+    except Exception:
+        raise credentials_exception
+    user = crud.user.get(db, id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user

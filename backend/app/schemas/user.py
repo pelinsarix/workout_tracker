@@ -1,6 +1,6 @@
 # User schemas
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 # Shared properties
 class UserBase(BaseModel):
@@ -23,11 +23,7 @@ class UserUpdate(UserBase):
 
 class UserInDBBase(UserBase):
     id: int
-    # data_criacao: datetime # Handled by DB
-    # data_atualizacao: datetime # Handled by DB
-
-    class Config:
-        from_attributes = True # Pydantic V2, replaces orm_mode
+    model_config = ConfigDict(from_attributes=True)
 
 # Additional properties to return via API
 class User(UserInDBBase):

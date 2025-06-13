@@ -20,6 +20,6 @@ class User(Base):
 
     # Relationships (add as needed based on other models)
     # exercicios = relationship("Exercicio", back_populates="usuario")
-    # treinos_fixos = relationship("TreinoFixo", back_populates="usuario")
-    # execucoes_treino = relationship("ExecucaoTreino", back_populates="usuario")
+    treinos_fixos = relationship("TreinoFixo", back_populates="usuario", cascade="all, delete-orphan")
+    execucoes_treino = relationship("ExecucaoTreino", back_populates="usuario", cascade="all, delete-orphan") # Adicionado relacionamento
     # metas = relationship("Meta", back_populates="usuario")

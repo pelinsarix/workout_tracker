@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Home, BarChart3, Dumbbell, User, LogIn } from "lucide-react"
+import { Menu, X, Home, BarChart3, Dumbbell, User, LogIn, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
@@ -12,6 +12,7 @@ const navItems = [
   { label: "Início", href: "/", icon: Home },
   { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { label: "Treinos", href: "/treinos", icon: Dumbbell },
+  { label: "Exercícios", href: "/exercicios", icon: ListChecks },
 ]
 
 export default function Navbar() {

@@ -1,6 +1,7 @@
 # Workout schemas (TreinoFixo, ExercicioTreino)
 from typing import Optional, List
 from pydantic import BaseModel
+from app.schemas.exercise import Exercicio # Adicionado
 
 # --- ExercicioTreino Schemas ---
 class ExercicioTreinoBase(BaseModel):
@@ -27,7 +28,10 @@ class ExercicioTreinoInDBBase(ExercicioTreinoBase):
         from_attributes = True
 
 class ExercicioTreino(ExercicioTreinoInDBBase):
-    # exercicio: Optional[Exercicio] # If you want to nest Exercicio details
+    exercicio: Optional[Exercicio] = None # Modificado para incluir detalhes do exercício
+
+# Adicionado o schema ExercicioTreinoInDB
+class ExercicioTreinoInDB(ExercicioTreinoInDBBase):
     pass
 
 # --- TreinoFixo Schemas ---

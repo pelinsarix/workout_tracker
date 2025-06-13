@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Plus, Search, Filter, Dumbbell, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import { ExerciciosApi } from "@/lib/api"
 
 export default function ExerciciosPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -20,115 +21,62 @@ export default function ExerciciosPage() {
   const [filtroEquipamento, setFiltroEquipamento] = useState("todos")
   const [ordenacao, setOrdenacao] = useState("nome-asc")
 
-  // Carregar dados dos exercícios (simulação)
+  // Carregar dados dos exercícios da API
   useEffect(() => {
-    // Simulando carregamento de dados
-    setIsLoading(true)
+    const carregarExercicios = async () => {
+      setIsLoading(true);
+      try {
+        const { ExerciciosApi } = await import('@/lib/api');
+        const data = await ExerciciosApi.listarExercicios();
+        
+        // Convertendo os campos para o formato esperado pelo frontend (camelCase)
+        const exerciciosFormatados = data.map((exercicio: any) => ({
+          id: exercicio.id,
+          nome: exercicio.nome,
+          grupoMuscular: exercicio.grupo_muscular,
+          equipamento: exercicio.equipamento,
+          dificuldade: exercicio.dificuldade,
+          descricao: exercicio.descricao,
+          imagem: exercicio.imagem_url || "/placeholder.svg?height=200&width=200",
+        }));
+        
+        setExercicios(exerciciosFormatados);
+      } catch (error) {
+        console.error("Erro ao carregar exercícios:", error);
+        // Em caso de falha, usar dados de exemplo para não quebrar a interface
+        const exerciciosData = [
+          {
+            id: "1",
+            nome: "Agachamento",
+            grupoMuscular: "quadríceps",
+            equipamento: "barra",
+            dificuldade: "intermediario",
+            imagem: "/placeholder.svg?height=200&width=200",
+          },
+          {
+            id: "2",
+            nome: "Supino Reto",
+            grupoMuscular: "peitoral",
+            equipamento: "barra",
+            dificuldade: "intermediario",
+            imagem: "/placeholder.svg?height=200&width=200",
+          },
+          {
+            id: "3",
+            nome: "Puxada Frontal",
+            grupoMuscular: "costas",
+            equipamento: "máquina",
+            dificuldade: "iniciante",
+            imagem: "/placeholder.svg?height=200&width=200",
+          }
+        ];
+        setExercicios(exerciciosData);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setTimeout(() => {
-      // Dados de exemplo
-      const exerciciosData = [
-        {
-          id: "1",
-          nome: "Agachamento",
-          grupoMuscular: "quadríceps",
-          equipamento: "barra",
-          dificuldade: "intermediario",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "2",
-          nome: "Supino Reto",
-          grupoMuscular: "peitoral",
-          equipamento: "barra",
-          dificuldade: "intermediario",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "3",
-          nome: "Puxada Frontal",
-          grupoMuscular: "costas",
-          equipamento: "máquina",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "4",
-          nome: "Leg Press",
-          grupoMuscular: "quadríceps",
-          equipamento: "máquina",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "5",
-          nome: "Desenvolvimento com Halteres",
-          grupoMuscular: "ombros",
-          equipamento: "halteres",
-          dificuldade: "intermediario",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "6",
-          nome: "Rosca Direta",
-          grupoMuscular: "bíceps",
-          equipamento: "barra",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "7",
-          nome: "Tríceps Corda",
-          grupoMuscular: "tríceps",
-          equipamento: "cabo",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "8",
-          nome: "Elevação Lateral",
-          grupoMuscular: "ombros",
-          equipamento: "halteres",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "9",
-          nome: "Stiff",
-          grupoMuscular: "posteriores",
-          equipamento: "barra",
-          dificuldade: "intermediario",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "10",
-          nome: "Flexão de Braço",
-          grupoMuscular: "peitoral",
-          equipamento: "peso corporal",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "11",
-          nome: "Abdominal",
-          grupoMuscular: "abdômen",
-          equipamento: "peso corporal",
-          dificuldade: "iniciante",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-        {
-          id: "12",
-          nome: "Barra Fixa",
-          grupoMuscular: "costas",
-          equipamento: "peso corporal",
-          dificuldade: "avancado",
-          imagem: "/placeholder.svg?height=200&width=200",
-        },
-      ]
-
-      setExercicios(exerciciosData)
-      setIsLoading(false)
-    }, 1000)
+    carregarExercicios();
   }, [])
 
   // Filtrar e ordenar exercícios
@@ -171,11 +119,15 @@ export default function ExerciciosPage() {
     exerciciosPorGrupo[ex.grupoMuscular].push(ex)
   })
 
-  // Obter grupos musculares únicos para o filtro
-  const gruposMusculares = Array.from(new Set(exercicios.map((ex) => ex.grupoMuscular)))
+  // Obter grupos musculares únicos para o filtro, removendo valores vazios ou nulos
+  const gruposMusculares = Array.from(
+    new Set(exercicios.map((ex) => ex.grupoMuscular).filter(Boolean))
+  ) as string[];
 
-  // Obter equipamentos únicos para o filtro
-  const equipamentos = Array.from(new Set(exercicios.map((ex) => ex.equipamento)))
+  // Obter equipamentos únicos para o filtro, removendo valores vazios ou nulos
+  const equipamentos = Array.from(
+    new Set(exercicios.map((ex) => ex.equipamento).filter(Boolean))
+  ) as string[];
 
   // Renderizar lista de exercícios
   const renderExercicios = () => {
@@ -222,8 +174,9 @@ export default function ExerciciosPage() {
             >
               <Link
                 href={`/exercicios/${exercicio.id}`}
-                className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow p-4" // Adicionado padding e removida imagem
               >
+                {/* Seção da imagem removida 
                 <div className="aspect-square bg-gray-100 relative">
                   <img
                     src={exercicio.imagem || "/placeholder.svg"}
@@ -247,16 +200,33 @@ export default function ExerciciosPage() {
                         : "Avançado"}
                   </Badge>
                 </div>
-                <div className="p-3">
-                  <h3 className="font-semibold truncate">{exercicio.nome}</h3>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    <Badge variant="secondary" className="capitalize">
-                      {exercicio.grupoMuscular}
-                    </Badge>
-                    <Badge variant="outline" className="capitalize">
-                      {exercicio.equipamento}
-                    </Badge>
+                */}
+                <div className="pt-2"> {/* Ajustado para remover espaço extra da imagem */}
+                  <h3 className="font-semibold text-lg truncate mb-1">{exercicio.nome}</h3>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {exercicio.grupoMuscular && (
+                      <Badge variant="secondary" className="capitalize">{exercicio.grupoMuscular}</Badge>
+                    )}
+                    {exercicio.equipamento && (
+                      <Badge variant="secondary" className="capitalize">{exercicio.equipamento}</Badge>
+                    )}
                   </div>
+                  <Badge
+                    variant="outline"
+                    className={`capitalize w-full justify-center ${ // Badge de dificuldade agora ocupa largura total
+                      exercicio.dificuldade === "iniciante"
+                        ? "bg-green-100 text-green-800 border-green-200"
+                        : exercicio.dificuldade === "intermediario"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : "bg-red-100 text-red-800 border-red-200"
+                    }`}
+                  >
+                    {exercicio.dificuldade === "iniciante"
+                      ? "Iniciante"
+                      : exercicio.dificuldade === "intermediario"
+                        ? "Intermediário"
+                        : "Avançado"}
+                  </Badge>
                 </div>
               </Link>
             </motion.div>

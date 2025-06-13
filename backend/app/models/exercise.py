@@ -21,4 +21,4 @@ class Exercicio(Base):
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # usuario = relationship("User", back_populates="exercicios")
-    # treinos_exercicios = relationship("ExercicioTreino", back_populates="exercicio")
+    treinos_exercicios = relationship("ExercicioTreino", back_populates="exercicio")

@@ -96,20 +96,24 @@ def update_exercicio(
         
     return crud.exercicio.update(db=db, db_obj=exercicio, obj_in=update_data)
 
-@router.delete("/{id}", response_model=schemas.Exercicio)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT) # Alterado response_model e status_code
 def delete_exercicio(
-    *, 
+    *,
     db: Session = Depends(deps.get_db),
     id: int,
     current_user: models.User = Depends(deps.get_current_active_user)
 ):
     """
-    Remove um exercício.
-    Apenas o criador do exercício pode removê-lo.
+    Exclui um exercício.
+    Apenas o criador do exercício pode excluí-lo.
     """
     exercicio = crud.exercicio.get(db=db, id=id)
     if not exercicio:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exercício não encontrado")
     if exercicio.usuario_id != current_user.id:
+        # Adicionar verificação se o exercício é público e se o usuário é admin, se essa lógica for implementada
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não tem permissão para excluir este exercício")
-    return crud.exercicio.remove(db=db, id=id)
+    
+    crud.exercicio.remove(db=db, id=id)
+    # Nenhum corpo de resposta é retornado para 204
+    return # Adicionado para FastAPI entender que não há corpo de resposta

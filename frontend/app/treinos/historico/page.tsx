@@ -1,47 +1,61 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format } from "date-fns"
+import { format, differenceInMinutes } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { CalendarIcon, ClockIcon, DumbbellIcon } from "lucide-react"
+import { CalendarIcon, ClockIcon, DumbbellIcon, Loader2 } from "lucide-react"
+import { ExecucoesTreinoApi } from "@/lib/api"
+import { TreinoExecucao } from "@/lib/types" // Corrigido para TreinoExecucao
+import Link from 'next/link';
 
 export default function HistoricoPage() {
-  // Dados de exemplo do histórico de treinos
-  const historicoTreinos = [
-    {
-      id: "1",
-      treinoNome: "Perna I",
-      data: new Date(2023, 4, 15),
-      duracao: "45 minutos",
-      exercicios: 4,
-      series: 12,
-    },
-    {
-      id: "2",
-      treinoNome: "Peito",
-      data: new Date(2023, 4, 13),
-      duracao: "50 minutos",
-      exercicios: 5,
-      series: 15,
-    },
-    {
-      id: "3",
-      treinoNome: "Costas",
-      data: new Date(2023, 4, 11),
-      duracao: "40 minutos",
-      exercicios: 4,
-      series: 12,
-    },
-    {
-      id: "4",
-      treinoNome: "Perna II",
-      data: new Date(2023, 4, 9),
-      duracao: "55 minutos",
-      exercicios: 5,
-      series: 15,
-    },
-  ]
+  const [historicoTreinos, setHistoricoTreinos] = useState<TreinoExecucao[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchHistorico = async () => {
+      try {
+        setLoading(true)
+        const data = await ExecucoesTreinoApi.listarTodasExecucoesUsuario()
+        setHistoricoTreinos(data)
+        setError(null)
+      } catch (err) {
+        console.error("Erro ao buscar histórico de treinos:", err)
+        setError("Falha ao carregar o histórico de treinos. Tente novamente mais tarde.")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchHistorico()
+  }, [])
+
+  const calcularDuracao = (dataInicio?: string | Date, dataFim?: string | Date): string => {
+    if (!dataInicio || !dataFim) return "N/A"
+    const inicio = new Date(dataInicio)
+    const fim = new Date(dataFim)
+    const diff = differenceInMinutes(fim, inicio)
+    if (isNaN(diff) || diff < 0) return "N/A"
+    return `${diff} minutos`
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p className="text-red-500">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -50,97 +64,56 @@ export default function HistoricoPage() {
           <CardTitle>Histórico de Treinos</CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="todos">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="todos">Todos</TabsTrigger>
-              <TabsTrigger value="semana">Esta Semana</TabsTrigger>
-              <TabsTrigger value="mes">Este Mês</TabsTrigger>
-            </TabsList>
+          {historicoTreinos.length === 0 ? (
+            <p className="text-center text-gray-500">Nenhum treino executado ainda.</p>
+          ) : (
+            <Tabs defaultValue="todos">
+              {/* <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="todos">Todos</TabsTrigger>
+                <TabsTrigger value="semana">Esta Semana</TabsTrigger>
+                <TabsTrigger value="mes">Este Mês</TabsTrigger>
+              </TabsList> */}
+              {/* TODO: Implementar filtros de semana/mês se necessário */}
+              
+              <TabsContent value="todos" className="pt-4">
+                <div className="space-y-4">
+                  {historicoTreinos.map((execucao) => (
+                    <Link key={execucao.id} href={`/treinos/execucao/${execucao.id}`} passHref>
+                      <div className="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {execucao.treino_fixo?.nome || "Treino Concluído"}
+                            </h3>
+                            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mt-1">
+                              <CalendarIcon className="h-4 w-4" />
+                              <span>
+                                {execucao.data_inicio 
+                                  ? format(new Date(execucao.data_inicio), "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR })
+                                  : "Data não registrada"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                              <ClockIcon className="h-4 w-4" />
+                              <span>{calcularDuracao(execucao.data_inicio, execucao.data_fim)}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 mt-1">
+                              <DumbbellIcon className="h-4 w-4" />
+                              <span>{execucao.exercicios_executados?.length || 0} exercícios</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </TabsContent>
 
-            <TabsContent value="todos" className="pt-4">
-              <div className="space-y-4">
-                {historicoTreinos.map((treino) => (
-                  <div key={treino.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{treino.treinoNome}</h3>
-                        <div className="flex items-center gap-2 text-gray-600 mt-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span>{format(treino.data, "dd 'de' MMMM", { locale: ptBR })}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <ClockIcon className="h-4 w-4" />
-                          <span>{treino.duracao}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-600 mt-1">
-                          <DumbbellIcon className="h-4 w-4" />
-                          <span>{treino.exercicios} exercícios</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="semana" className="pt-4">
-              <div className="space-y-4">
-                {historicoTreinos.slice(0, 2).map((treino) => (
-                  <div key={treino.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{treino.treinoNome}</h3>
-                        <div className="flex items-center gap-2 text-gray-600 mt-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span>{format(treino.data, "dd 'de' MMMM", { locale: ptBR })}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <ClockIcon className="h-4 w-4" />
-                          <span>{treino.duracao}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-600 mt-1">
-                          <DumbbellIcon className="h-4 w-4" />
-                          <span>{treino.exercicios} exercícios</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="mes" className="pt-4">
-              <div className="space-y-4">
-                {historicoTreinos.map((treino) => (
-                  <div key={treino.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{treino.treinoNome}</h3>
-                        <div className="flex items-center gap-2 text-gray-600 mt-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span>{format(treino.data, "dd 'de' MMMM", { locale: ptBR })}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <ClockIcon className="h-4 w-4" />
-                          <span>{treino.duracao}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-600 mt-1">
-                          <DumbbellIcon className="h-4 w-4" />
-                          <span>{treino.exercicios} exercícios</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
+              {/* Conteúdo para 'semana' e 'mes' pode ser adicionado aqui */}
+            </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

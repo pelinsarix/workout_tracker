@@ -15,9 +15,9 @@ class TreinoFixo(Base):
     data_criacao = Column(DateTime, default=func.now())
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # usuario = relationship("User", back_populates="treinos_fixos")
-    # exercicios_treino = relationship("ExercicioTreino", back_populates="treino_fixo", cascade="all, delete-orphan")
-    # execucoes_treino = relationship("ExecucaoTreino", back_populates="treino_fixo")
+    usuario = relationship("User", back_populates="treinos_fixos") # Descomentado para corrigir erro de mapeamento
+    exercicios_treino = relationship("ExercicioTreino", back_populates="treino_fixo", cascade="all, delete-orphan")
+    execucoes = relationship("ExecucaoTreino", back_populates="treino_fixo", cascade="all, delete-orphan") # Relacionamento para execuções
 
 class ExercicioTreino(Base):
     __tablename__ = "exercicio_treino"
@@ -33,5 +33,5 @@ class ExercicioTreino(Base):
     data_criacao = Column(DateTime, default=func.now())
     data_atualizacao = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # treino_fixo = relationship("TreinoFixo", back_populates="exercicios_treino")
-    # exercicio = relationship("Exercicio", back_populates="treinos_exercicios")
+    treino_fixo = relationship("TreinoFixo", back_populates="exercicios_treino")
+    exercicio = relationship("Exercicio", back_populates="treinos_exercicios") # Descomentado

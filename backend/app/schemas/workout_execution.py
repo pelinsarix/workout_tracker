@@ -1,91 +1,125 @@
 # Workout execution schemas
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
+from app.schemas.exercise import Exercicio # Para aninhar detalhes do exercício, se necessário
 
 # --- Serie Schemas ---
 class SerieBase(BaseModel):
+    ordem: int
     repeticoes: Optional[int] = None
     peso: Optional[float] = None
-    concluida: Optional[bool] = False
-    ordem: int
+    concluida: bool = False
 
 class SerieCreate(SerieBase):
     pass
 
 class SerieUpdate(SerieBase):
-    id: int # Required for update
+    # id: int # Não é necessário para atualizar via nested, mas útil para CRUD direto de Serie
+    pass
 
-class SerieInDBBase(SerieBase):
+class Serie(SerieBase):
     id: int
-    execucao_exercicio_id: int
-    # data_criacao: datetime
-    # data_atualizacao: datetime
+    # execucao_exercicio_id: int # Removido para não expor desnecessariamente
 
     class Config:
         from_attributes = True
-
-class Serie(SerieInDBBase):
-    pass
 
 # --- ExecucaoExercicio Schemas ---
 class ExecucaoExercicioBase(BaseModel):
     exercicio_id: int
-    exercicio_treino_id: Optional[int] = None # Link to the planned exercise if any
+    ordem: int
+    # nome_exercicio: Optional[str] = None # Será populado via relationship no schema de resposta
+    observacoes: Optional[str] = None
 
 class ExecucaoExercicioCreate(ExecucaoExercicioBase):
-    # series: Optional[List[SerieCreate]] = [] # For creating with series
-    pass
+    series: List[SerieCreate] = []
 
 class ExecucaoExercicioUpdate(ExecucaoExercicioBase):
-    id: int # Required for update
+    # id: int # Não é necessário para atualizar via nested
+    series: Optional[List[SerieUpdate]] = None # Permitir atualização de séries
 
-class ExecucaoExercicioInDBBase(ExecucaoExercicioBase):
+class ExecucaoExercicio(ExecucaoExercicioBase):
     id: int
-    execucao_treino_id: int
-    # data_criacao: datetime
-    # data_atualizacao: datetime
+    exercicio: Optional[Exercicio] = None # Para mostrar nome, etc.
+    series: List[Serie] = []
+    # execucao_treino_id: int # Removido para não expor desnecessariamente
 
     class Config:
         from_attributes = True
-
-class ExecucaoExercicio(ExecucaoExercicioInDBBase):
-    series: List[Serie] = []
-    # exercicio: Optional[Exercicio] # If you want to nest Exercicio details
 
 # --- ExecucaoTreino Schemas ---
 class ExecucaoTreinoBase(BaseModel):
     treino_fixo_id: int
-    peso_usuario: Optional[float] = None
-    observacoes: Optional[str] = None
+    data_inicio: datetime = Field(default_factory=datetime.now)
+    data_fim: Optional[datetime] = None
+    duracao_minutos: Optional[int] = None  # Duração manual em minutos
+    peso_corporal: Optional[float] = None # Alinhado com o frontend (era peso_usuario no modelo)
+    observacoes_gerais: Optional[str] = None # Alinhado com o frontend (era observacoes no modelo)
 
 class ExecucaoTreinoCreate(ExecucaoTreinoBase):
-    pass
+    exercicios_executados: List[ExecucaoExercicioCreate] = []
 
 class ExecucaoTreinoUpdate(BaseModel):
-    observacoes: Optional[str] = None
-    # Potentially other fields that can be updated after start but before finish
+    data_fim: Optional[datetime] = None
+    duracao_minutos: Optional[int] = None  # Duração manual em minutos
+    peso_corporal: Optional[float] = None
+    observacoes_gerais: Optional[str] = None
+    exercicios_executados: Optional[List[ExecucaoExercicioUpdate]] = None # Para permitir atualizar exercícios e séries
 
-class ExecucaoTreinoInDBBase(ExecucaoTreinoBase):
+class ExecucaoTreino(ExecucaoTreinoBase):
     id: int
     usuario_id: int
-    data_inicio: datetime
-    data_fim: Optional[datetime] = None
-    # data_criacao: datetime
-    # data_atualizacao: datetime
+    exercicios_executados: List[ExecucaoExercicio] = []
+    # Incluir dados do treino fixo para facilitar exibição no histórico
+    treino_fixo: Optional["TreinoFixoBasico"] = None
 
     class Config:
         from_attributes = True
 
-class ExecucaoTreino(ExecucaoTreinoInDBBase):
-    exercicios_executados: List[ExecucaoExercicio] = []
-    # treino_fixo: Optional[TreinoFixo] # If you want to nest TreinoFixo details
-
-class ExecucaoTreinoStartResponse(BaseModel):
+# Schema básico do treino fixo para usar na execução (evita dependência circular)
+class TreinoFixoBasico(BaseModel):
     id: int
-    data_inicio: datetime
-    treino_fixo_id: int
-    # treino_nome: str # This would require fetching treino_fixo details
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    tempo_descanso_global: Optional[int] = 60
+    # Adicionado para garantir que o schema TreinoFixo possa ser usado em ExecucaoTreino
+    # sem causar erro de validação se o campo não estiver presente no objeto TreinoFixo retornado pelo DB.
+    # Isso pode acontecer se o objeto TreinoFixo não tiver sido atualizado para incluir este campo.
+    # Em um cenário ideal, todos os objetos TreinoFixo no DB teriam este campo.
+    # Mas para evitar erros de validação em dados existentes, tornamos opcional aqui.
+    # Se o campo for essencial para a lógica de negócio, deve ser obrigatório e os dados existentes
+    # devem ser migrados.
+    # tempo_descanso_entre_series: Optional[int] = None 
 
-class ExecucaoTreinoFinalizar(BaseModel):
-    observacoes: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+# Schema para configuração de série pré-definida
+class SerieConfig(BaseModel):
+    repeticoes: Optional[int] = None
+    peso: Optional[float] = None
+
+# Schema para configuração de exercício pré-definida
+class ExercicioConfig(BaseModel):
+    series: List[SerieConfig] = []
+
+# Schema para iniciar um treino (input)
+class TreinoExecucaoStart(BaseModel):
+    treino_fixo_id: int
+    data_inicio: datetime = Field(default_factory=datetime.now)
+    peso_corporal: Optional[float] = None
+    exercicios_config: Optional[dict] = None  # Dict[int, ExercicioConfig] mas simplificado para flexibilidade
+
+# Schema para resposta ao iniciar um treino, pode ser mais simples
+class ExecucaoTreinoIniciado(BaseModel):
+    id: int
+    treino_fixo_id: int
+    usuario_id: int
+    data_inicio: datetime
+
+# Schema para listar execuções no histórico (pode ser o mesmo que ExecucaoTreino ou um mais leve)
+class ExecucaoTreinoHistorico(ExecucaoTreino):
+    # Poderia adicionar o nome do treino aqui se fizesse um join na query do CRUD
+    # treino_nome: Optional[str] = None
+    pass

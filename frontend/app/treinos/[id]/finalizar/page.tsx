@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,7 +15,6 @@ import {
   TrendingUpIcon,
   StarIcon,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import confetti from "canvas-confetti"
 
@@ -23,13 +23,15 @@ export default function FinalizarPage({
 }: {
   params: { id: string }
 }) {
-  const router = useRouter()
-  const [showStats, setShowStats] = useState(false)
+  const router = useRouter();
+  const { id } = params;
+  const [showStats, setShowStats] = useState(false);
+  const treinoId = id;
 
   // Dados de exemplo do treino concluído
   const treino = {
-    id: params.id,
-    nome: params.id === "1" ? "Perna I" : params.id === "2" ? "Perna II" : params.id === "3" ? "Peito" : "Costas",
+    id: treinoId,
+    nome: id === "1" ? "Perna I" : id === "2" ? "Perna II" : id === "3" ? "Peito" : "Costas",
     duracao: "45 minutos",
     exerciciosConcluidos: 4,
     totalSeries: 12,
